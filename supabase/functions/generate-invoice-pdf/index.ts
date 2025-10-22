@@ -86,12 +86,10 @@ serve(async (req) => {
       .from('notes')
       .getPublicUrl(imageFilePath);
 
-    console.log('Imagem salva:', imageUrlData.publicUrl);
-
+    let pdfUrl: string | undefined = undefined;
+    
     // Gerar PDF DANFE usando a chave de acesso extraída
     console.log('Chamando DANF API com chave de acesso:', chaveAcesso);
-    
-    let pdfUrl = imageUrlData.publicUrl; // Fallback para a imagem
     
     try {
       const danfResponse = await fetch('https://api.danf.com.br/v1/generate', {
@@ -108,7 +106,8 @@ serve(async (req) => {
       if (!danfResponse.ok) {
         const errorText = await danfResponse.text();
         console.error('Erro na API DANF:', danfResponse.status, errorText);
-        throw new Error(`API DANF retornou erro ${danfResponse.status}`);
+        // Lançar erro para ser capturado no bloco catch principal
+        throw new Error(`API DANF retornou erro ${danfResponse.status}: ${errorText.substring(0, 100)}...`);
       }
 
       const danfResult = await danfResponse.json();
@@ -217,8 +216,8 @@ serve(async (req) => {
 
         } catch (ocrError) {
           console.error('Erro no processamento OCR:', ocrError);
+          // Se o OCR falhar, tentamos salvar o PDF original da DANF API
           
-          // Fallback: salvar PDF original sem OCR
           const pdfFileName = `danfe_${noteId}_${Date.now()}.pdf`;
           const pdfFilePath = `invoices/${pdfFileName}`;
 
@@ -235,14 +234,22 @@ serve(async (req) => {
               .getPublicUrl(pdfFilePath);
             pdfUrl = pdfUrlData.publicUrl;
             console.log('PDF sem OCR salvo (fallback):', pdfUrl);
+          } else {
+            console.error('Erro ao salvar PDF original (fallback):', pdfUploadError);
+            // Se nem o fallback funcionar, lançamos o erro original do OCR
+            throw ocrError;
           }
         }
       } else if (danfResult.pdf_url) {
         pdfUrl = danfResult.pdf_url;
+      } else {
+        // Se a DANF API não retornar base64 nem URL, consideramos falha
+        throw new Error('API DANF não retornou dados de PDF válidos.');
       }
     } catch (apiError) {
       console.error('Erro ao gerar DANFE:', apiError);
-      // Continua e retorna a imagem original como fallback
+      // Se a geração do DANFE falhar, lançamos o erro para o bloco catch principal
+      throw apiError;
     }
 
     return new Response(
@@ -258,7 +265,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro ao processar nota:', error);
+    console.error('Erro fatal no processamento da nota:', error);
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Erro desconhecido',
