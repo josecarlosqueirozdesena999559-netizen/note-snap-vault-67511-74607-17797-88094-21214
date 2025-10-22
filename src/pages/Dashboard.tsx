@@ -96,8 +96,9 @@ const Dashboard = () => {
       }
 
       toast({
+        id: toastId.id,
         title: "Gerando PDF...",
-        description: "Aguarde enquanto processamos a DANFE",
+        description: "Aguarde enquanto processamos a DANFE e OCR",
       });
 
       // Gerar e salvar PDF/imagem
@@ -117,9 +118,9 @@ const Dashboard = () => {
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Erro na geração do PDF:', errorData);
-        throw new Error(errorData.error || 'Erro ao gerar PDF');
+        const errorData = await response.json().catch(() => ({ error: 'Resposta não JSON da função Edge' }));
+        console.error('Erro na geração do PDF:', response.status, errorData);
+        throw new Error(errorData.error || `Erro ao gerar PDF (Status: ${response.status})`);
       }
 
       const result = await response.json();
@@ -127,8 +128,12 @@ const Dashboard = () => {
       // Atualizar nota com URL da foto/PDF
       if (result.success) {
         const updateData: any = {};
-        if (result.photoUrl) updateData.photo_url = result.photoUrl;
-        if (result.pdfUrl) updateData.photo_url = result.pdfUrl;
+        // Prioriza pdfUrl, se existir
+        if (result.pdfUrl) {
+          updateData.photo_url = result.pdfUrl;
+        } else if (result.photoUrl) {
+          updateData.photo_url = result.photoUrl;
+        }
         
         if (Object.keys(updateData).length > 0) {
           const { error: updateError } = await supabase
@@ -141,11 +146,15 @@ const Dashboard = () => {
             throw new Error('Erro ao atualizar nota com PDF');
           }
         }
+      } else {
+        // Se a função Edge retornar success: false, mas com status 200
+        throw new Error(result.error || 'Falha na geração do PDF/OCR.');
       }
 
       toast({
+        id: toastId.id,
         title: "Sucesso!",
-        description: "Nota fiscal salva com sucesso",
+        description: "Nota fiscal salva e PDF gerado com sucesso",
       });
 
       // Recarregar notas
@@ -155,6 +164,7 @@ const Dashboard = () => {
       console.error('Erro ao salvar nota:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
+        id: toastId.id,
         title: "Erro ao salvar",
         description: errorMessage,
         variant: "destructive",
