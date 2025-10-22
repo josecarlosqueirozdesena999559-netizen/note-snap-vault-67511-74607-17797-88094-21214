@@ -92,6 +92,7 @@ serve(async (req) => {
     console.log('Chamando DANF API com chave de acesso:', chaveAcesso);
     
     try {
+      console.log('Iniciando fetch para DANF API...');
       const danfResponse = await fetch('https://api.danf.com.br/v1/generate', {
         method: 'POST',
         headers: {
@@ -122,6 +123,7 @@ serve(async (req) => {
         
         try {
           // 1. Iniciar tarefa OCR
+          console.log('Iniciando fetch para ILovePDF start task...');
           const startTaskResponse = await fetch('https://api.ilovepdf.com/v1/start/pdfa', {
             method: 'GET',
             headers: {
@@ -144,6 +146,7 @@ serve(async (req) => {
           formData.append('task', taskId);
           formData.append('file', new Blob([pdfData], { type: 'application/pdf' }), 'invoice.pdf');
 
+          console.log('Iniciando fetch para ILovePDF upload...');
           const uploadResponse = await fetch(`${serverUrl}/v1/upload`, {
             method: 'POST',
             headers: {
@@ -159,6 +162,7 @@ serve(async (req) => {
           console.log('PDF enviado para OCR');
 
           // 3. Processar OCR
+          console.log('Iniciando fetch para ILovePDF process...');
           const processResponse = await fetch(`${serverUrl}/v1/process`, {
             method: 'POST',
             headers: {
@@ -178,6 +182,7 @@ serve(async (req) => {
           console.log('OCR processado');
 
           // 4. Download do PDF processado
+          console.log('Iniciando fetch para ILovePDF download...');
           const downloadResponse = await fetch(`${serverUrl}/v1/download/${taskId}`, {
             method: 'GET',
             headers: {
