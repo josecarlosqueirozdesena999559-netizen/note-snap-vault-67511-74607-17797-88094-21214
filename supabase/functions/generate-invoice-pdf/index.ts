@@ -253,7 +253,22 @@ serve(async (req) => {
       }
     } catch (apiError) {
       console.error('Erro ao gerar DANFE:', apiError);
-      // Se a geração do DANFE falhar, lançamos o erro para o bloco catch principal
+      
+      // Se for um erro de rede/DNS, retornamos uma mensagem específica
+      if (apiError instanceof Error && (apiError.message.includes('DnsError') || apiError.message.includes('sending request'))) {
+        return new Response(
+          JSON.stringify({ 
+            error: `Falha de conexão com a DANF API. Verifique as Restrições de Rede de Saída (Outbound Network Restrictions) no Supabase para o domínio api.danf.com.br. Detalhe: ${apiError.message}`,
+            success: false
+          }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      // Caso contrário, lançamos o erro normal
       throw apiError;
     }
 
