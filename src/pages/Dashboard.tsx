@@ -118,9 +118,17 @@ const Dashboard = () => {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Resposta não JSON da função Edge' }));
+        // Tenta ler o corpo da resposta para obter a mensagem de erro detalhada
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { error: `Erro de rede ou resposta não JSON (Status: ${response.status})` };
+        }
+        
+        const errorMessage = errorData.error || `Erro ao gerar PDF (Status: ${response.status})`;
         console.error('Erro na geração do PDF:', response.status, errorData);
-        throw new Error(errorData.error || `Erro ao gerar PDF (Status: ${response.status})`);
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -163,10 +171,16 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Erro ao salvar nota:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      
+      // Verifica se a mensagem de erro é a específica sobre restrições de rede
+      const displayMessage = errorMessage.includes('Falha de conexão com a DANF API')
+        ? "Falha de conexão com a API externa. Por favor, configure as Restrições de Rede de Saída no Supabase (Settings > Edge Functions)."
+        : errorMessage;
+
       toast({
         id: toastId.id,
         title: "Erro ao salvar",
-        description: errorMessage,
+        description: displayMessage,
         variant: "destructive",
       });
     }
