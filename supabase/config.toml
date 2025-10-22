@@ -1,0 +1,7 @@
+project_id = "guyasjbhphdhzzynprzs"
+
+[functions.extract-invoice-data]
+verify_jwt = false
+
+[functions.generate-invoice-pdf]
+verify_jwt = false
